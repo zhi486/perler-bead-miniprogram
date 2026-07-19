@@ -1,0 +1,24 @@
+# perler_pattern 已有独立 GitHub 仓库，不再重复备份
+perler_pattern/
+
+# 大图片文件（根目录的示例/测试图片）
+BFEF0C9DC392E02092275BE1D28BF2A7.jpg
+e0qFmdwgxo1oe869c9be441d5fbac9c194961f877a0e.png
+j03YxV_8bt6c6cb36068e13afbd61a65be5f6f421a77.png
+gh_a25b4a1a0193_258.jpg
+user_avatar.png
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+*.spec
+.venv/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+*.log

@@ -1,0 +1,63 @@
+page {
+  --bg: #faf8f5;
+  --card: #ffffff;
+  --text: #1f1f28;
+  --sub: #9d9da8;
+  --accent: #f9742c;
+  --accent2: #e8458b;
+  --border: #f0ede8;
+  --shadow: 0 4rpx 24rpx rgba(0,0,0,0.05);
+  --shadow-lg: 0 8rpx 40rpx rgba(0,0,0,0.08);
+  background: var(--bg);
+  font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: var(--text);
+  font-size: 28rpx;
+}
+
+.card {
+  background: var(--card);
+  border-radius: 24rpx;
+  padding: 28rpx;
+  margin: 16rpx 20rpx;
+  box-shadow: var(--shadow);
+}
+
+.card-title {
+  font-size: 24rpx;
+  font-weight: 700;
+  color: var(--sub);
+  letter-spacing: 2rpx;
+  margin-bottom: 20rpx;
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+.card-title::before {
+  content: '';
+  display: inline-block;
+  width: 6rpx; height: 22rpx;
+  border-radius: 3rpx;
+  background: linear-gradient(180deg, var(--accent), var(--accent2));
+}
+
+.btn-row { display: flex; gap: 12rpx; }
+
+.btn {
+  padding: 18rpx 36rpx;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  text-align: center;
+  border: none;
+}
+
+.btn-accent {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff;
+  box-shadow: 0 6rpx 20rpx rgba(249,116,44,0.3);
+}
+.btn-ghost {
+  background: var(--card);
+  color: var(--text);
+  border: 2rpx solid var(--border);
+}

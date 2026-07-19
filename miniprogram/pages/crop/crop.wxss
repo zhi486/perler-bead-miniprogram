@@ -1,0 +1,174 @@
+.page { padding-bottom: 80rpx; }
+
+/* ── 上传区 ── */
+.upload-zone {
+  margin: 200rpx 40rpx 0;
+  padding: 80rpx 40rpx;
+  border-radius: 32rpx; text-align: center;
+  background: linear-gradient(150deg, #fff8f3 0%, #fff 50%, #fdf2f8 100%);
+  box-shadow: var(--shadow-lg);
+  position: relative; overflow: hidden;
+}
+.upload-zone::after {
+  content: ''; position: absolute; top: -60rpx; right: -40rpx;
+  width: 200rpx; height: 200rpx; border-radius: 50%;
+  background: linear-gradient(135deg, rgba(249,116,44,0.08), rgba(232,69,139,0.06));
+}
+.upload-icon { font-size: 80rpx; display: block; margin-bottom: 20rpx; position: relative; z-index: 1; }
+.upload-text { font-size: 30rpx; color: var(--text); font-weight: 600; position: relative; z-index: 1; }
+.upload-hint { font-size: 24rpx; color: var(--sub); margin-top: 8rpx; position: relative; z-index: 1; }
+
+/* ── 裁剪 ── */
+.crop-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: #000; z-index: 1;
+  display: flex; flex-direction: column; align-items: center;
+  padding-top: env(safe-area-inset-top);
+}
+.crop-top {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  padding: 16rpx 28rpx; box-sizing: border-box;
+}
+.crop-hint { color: #aaa; font-size: 22rpx; text-align: center; flex: 1; }
+.crop-skip, .crop-ok {
+  padding: 14rpx 28rpx; font-size: 26rpx; border-radius: 12rpx; border: none;
+}
+.crop-skip { background: rgba(255,255,255,0.12); color: #aaa; }
+.crop-ok { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; }
+
+.crop-stage {
+  position: relative; margin-top: 24rpx; overflow: visible;
+  /* 灰白棋盘格（图片外留白可见） */
+  background-color: #3a3a3a;
+  background-image:
+    linear-gradient(45deg, #4a4a4a 25%, transparent 25%),
+    linear-gradient(-45deg, #4a4a4a 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #4a4a4a 75%),
+    linear-gradient(-45deg, transparent 75%, #4a4a4a 75%);
+  background-size: 24rpx 24rpx;
+  background-position: 0 0, 0 12rpx, 12rpx -12rpx, -12rpx 0px;
+}
+.crop-img { display: block; position: absolute; }
+.crop-frame {
+  position: absolute; border: 4rpx dashed rgba(255,255,255,0.9);
+  box-shadow: 0 0 0 4000rpx rgba(0,0,0,0.55);
+}
+/* 角标手柄 */
+.crop-handle {
+  position: absolute; width: 36rpx; height: 36rpx;
+  background: rgba(255,255,255,0.95);
+  border: 4rpx solid rgba(249,116,44,0.8);
+  border-radius: 50%;
+  z-index: 10;
+}
+.crop-handle--tl { left: -18rpx; top: -18rpx; }
+.crop-handle--br { right: -18rpx; bottom: -18rpx; }
+.crop-grid-h {
+  position: absolute; left: 0; right: 0;
+  border-top: 2rpx solid rgba(255,255,255,0.25);
+}
+.crop-grid-v {
+  position: absolute; top: 0; bottom: 0;
+  border-left: 2rpx solid rgba(255,255,255,0.25);
+}
+
+/* ── 预览区 ── */
+.preview-wrap {
+  margin: 8rpx 20rpx; background: var(--card);
+  border-radius: 24rpx; overflow: auto;
+  min-height: 200rpx; text-align: center;
+  box-shadow: var(--shadow);
+}
+.preview-canvas { display: block; flex-shrink: 0; }
+
+/* ── 缩放栏 ── */
+.zoom-bar {
+  display: flex; align-items: center; justify-content: center;
+  gap: 8rpx; padding: 12rpx 0;
+}
+.zoom-btn {
+  width: 60rpx; height: 52rpx; border: none;
+  border-radius: 26rpx; background: var(--card);
+  box-shadow: var(--shadow); font-size: 32rpx;
+  font-weight: 600; line-height: 52rpx; text-align: center; padding: 0;
+  color: var(--text);
+}
+.zoom-btn:active { background: #f5f5f5; }
+.zoom-reset { width: auto; padding: 0 20rpx; font-size: 26rpx; }
+.zoom-label { min-width: 80rpx; text-align: center; font-weight: 700; font-size: 26rpx; color: var(--text); }
+
+/* ── 状态栏 ── */
+.status-bar {
+  font-size: 24rpx; color: var(--sub); text-align: center;
+  padding: 8rpx 20rpx; margin: 0 20rpx;
+}
+.rechoose-bar { margin: 4rpx 20rpx 12rpx; }
+
+/* ── 控制行 ── */
+.control-row { display: flex; align-items: center; gap: 16rpx; margin-bottom: 16rpx; }
+.control-label { font-size: 26rpx; width: 140rpx; flex-shrink: 0; font-weight: 500; color: var(--text); }
+.control-slider { flex: 1; }
+.control-input {
+  width: 90rpx; height: 52rpx; border: 2rpx solid var(--border);
+  border-radius: 12rpx; text-align: center; font-size: 24rpx;
+  padding: 0 4rpx; background: #fafaf8;
+}
+.bead-w-info { font-size: 24rpx; color: var(--sub); margin: -4rpx 0 16rpx 156rpx; }
+
+.check-row { display: flex; align-items: center; gap: 14rpx; margin-bottom: 14rpx; }
+.switch-label { font-size: 26rpx; font-weight: 500; }
+
+/* ── 选择器 ── */
+.selector-display {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16rpx 22rpx; border: 2rpx solid var(--border);
+  border-radius: 12rpx; font-size: 26rpx; font-weight: 500;
+  background: #fafaf8;
+}
+.selector-sm { padding: 10rpx 16rpx; font-size: 24rpx; flex: 1; }
+.selector-arrow { font-size: 18rpx; color: var(--sub); margin-left: 12rpx; }
+
+.picker-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.35); z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  animation: fadeIn .15s ease;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.picker-menu {
+  width: 560rpx; max-height: 70vh;
+  background: #fff; border-radius: 24rpx;
+  overflow-y: auto; padding: 8rpx 0;
+  box-shadow: 0 20rpx 60rpx rgba(0,0,0,0.2);
+  animation: slideUp .2s ease;
+}
+@keyframes slideUp { from { opacity: 0; transform: translateY(40rpx); } to { opacity: 1; transform: translateY(0); } }
+
+.picker-menu-title {
+  padding: 20rpx 28rpx 12rpx;
+  font-size: 24rpx; font-weight: 700; color: var(--sub);
+  letter-spacing: 2rpx;
+}
+.picker-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18rpx 28rpx; font-size: 28rpx; color: var(--text);
+  transition: background .1s;
+}
+.picker-item:active { background: #f8f8f5; }
+.picker-item--sel { color: var(--accent); font-weight: 600; }
+.picker-check { color: var(--accent); font-weight: 700; font-size: 30rpx; }
+
+/* ── 图例 ── */
+.legend-item { display: flex; align-items: center; gap: 16rpx; padding: 10rpx 0; font-size: 26rpx; }
+.legend-swatch {
+  width: 40rpx; height: 28rpx; border-radius: 6rpx; flex-shrink: 0;
+  box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.12), inset 0 1rpx 0 rgba(255,255,255,0.4);
+}
+.legend-code { font-weight: 700; min-width: 72rpx; font-size: 24rpx; }
+.legend-count { color: var(--sub); margin-left: auto; font-size: 24rpx; }
+.legend-summary {
+  margin-top: 20rpx; padding-top: 16rpx;
+  border-top: 1rpx solid var(--border);
+  font-weight: 700; font-size: 26rpx; text-align: center; color: var(--text);
+}

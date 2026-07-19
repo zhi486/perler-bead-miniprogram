@@ -1,0 +1,14 @@
+{
+  "pages": ["pages/index/index", "pages/crop/crop"],
+  "window": {
+    "navigationBarTitleText": "拼豆图纸生成器",
+    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f5f6f8"
+  },
+  "permission": {
+    "scope.writePhotosAlbum": { "desc": "用于保存拼豆图纸到相册" }
+  },
+  "__usePrivacyCheck__": false,
+  "sitemapLocation": "sitemap.json"
+}

@@ -1,0 +1,40 @@
+<!-- 裁剪工具 -->
+<view class="page">
+
+  <!-- ═══ 阶段 1: 选图 ═══ -->
+  <view class="upload-zone" bindtap="pickImage" wx:if="{{phase==='pick'}}">
+    <text class="upload-icon">✂️</text>
+    <text class="upload-text">点击选择图片进行裁剪</text>
+    <text class="upload-hint">选择图片后可自由裁剪区域</text>
+  </view>
+
+  <!-- ═══ 阶段 2: 裁剪 ═══ -->
+  <view class="crop-overlay" wx:if="{{phase==='crop'}}"
+    bindtouchstart="onCropTouchStart"
+    bindtouchmove="onCropTouchMove"
+    bindtouchend="onCropTouchEnd">
+    <view class="crop-top">
+      <button class="crop-skip" bindtap="skipCrop">跳过</button>
+      <text class="crop-hint">↖ 拖角移动 · 拉角调大小 ↘</text>
+      <button class="crop-ok" bindtap="confirmCrop">确认裁剪</button>
+    </view>
+    <view class="crop-stage"
+      style="width:{{cropDw}}px;height:{{cropDh}}px">
+      <image class="crop-img" src="{{cropPath}}" mode="aspectFit"
+        style="width:{{imgDw}}px;height:{{imgDh}}px;left:{{imgLeft}}px;top:{{imgTop}}px"/>
+      <!-- 裁剪框 -->
+      <view class="crop-frame"
+        style="left:{{cropX}}px;top:{{cropY}}px;width:{{cropW}}px;height:{{cropH}}px">
+        <!-- 左上角手柄：拖拽移动 -->
+        <view class="crop-handle crop-handle--tl"/>
+        <!-- 右下角手柄：拖拽调大小 -->
+        <view class="crop-handle crop-handle--br"/>
+        <!-- 九宫格参考线 -->
+        <view class="crop-grid-h" wx:for="{{[1,2]}}" wx:key="*this"
+          style="top:{{item * cropH / 3}}px"/>
+        <view class="crop-grid-v" wx:for="{{[1,2]}}" wx:key="*this"
+          style="left:{{item * cropW / 3}}px"/>
+      </view>
+    </view>
+  </view>
+</view>

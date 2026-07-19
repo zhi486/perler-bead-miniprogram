@@ -1,0 +1,118 @@
+<!-- 拼豆图纸生成器 -->
+<view class="page">
+
+  <view class="header">
+    <text class="header-icon">🧩</text>
+    <text class="header-title">拼豆图纸生成器</text>
+    <view class="header-action" bindtap="goToCrop">
+      <text>✂️ 裁剪</text>
+    </view>
+  </view>
+
+  <view class="upload-zone" bindtap="chooseImage" wx:if="{{!hasImage}}">
+    <text class="upload-icon">🖼️</text>
+    <text class="upload-text">点击选择图片</text>
+    <text class="upload-hint">支持拍照或从相册选取</text>
+  </view>
+
+  <block wx:if="{{hasImage}}">
+    <view class="preview-wrap">
+      <canvas type="2d" id="previewCanvas" class="preview-canvas"
+        bindtouchstart="onTouchStart" bindtouchmove="onTouchMove" bindtouchend="onTouchEnd"
+        style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;"></canvas>
+    </view>
+    <view class="zoom-bar">
+      <button class="zoom-btn" bindtap="zoomOut">−</button>
+      <text class="zoom-label">{{tileSize}}px</text>
+      <button class="zoom-btn" bindtap="zoomIn">+</button>
+      <button class="zoom-btn zoom-reset" bindtap="zoomReset">↺</button>
+    </view>
+    <view class="status-bar">{{statusText}}</view>
+    <view class="rechoose-bar"><button class="btn btn-ghost" bindtap="reChooseImage" style="width:100%">📷 重新选图</button></view>
+  </block>
+
+  <view class="card">
+    <view class="card-title">🎨 色卡品牌</view>
+    <view class="selector-display" bindtap="togglePalettePicker">
+      <text>{{paletteNames[paletteIdx]}}</text>
+      <text class="selector-arrow">▼</text>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="card-title">⚙️ 参数设置</view>
+    <view class="control-row">
+      <text class="control-label">豆子长度</text>
+      <slider class="control-slider" min="5" max="200" value="{{beadH}}" bindchanging="onBeadHChanging" bindchange="onBeadHSlider" show-value block-size="18"/>
+      <input class="control-input" type="number" value="{{beadH}}" bindblur="onBeadHInput"/>
+    </view>
+    <view class="bead-w-info" wx:if="{{hasImage}}">宽度: {{beadW}} 列</view>
+    <view class="control-row">
+      <text class="control-label">最大颜色数</text>
+      <slider class="control-slider" min="4" max="150" value="{{maxColors}}" bindchanging="onMaxColorsChanging" bindchange="onMaxColorsSlider" show-value block-size="18"/>
+      <input class="control-input" type="number" value="{{maxColors}}" bindblur="onMaxColorsInput"/>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="card-title">👁️ 显示 & 底板</view>
+    <view class="check-row" wx:if="{{hasImage}}">
+      <switch checked="{{showGrid}}" bindchange="onToggleGrid"/>
+      <text class="switch-label">显示网格线</text>
+    </view>
+    <view class="check-row" wx:if="{{hasImage}}">
+      <switch checked="{{showBoard}}" bindchange="onToggleBoard"/>
+      <text class="switch-label">显示底板边界</text>
+    </view>
+    <view class="check-row" wx:if="{{hasImage}}">
+      <switch checked="{{showCodes}}" bindchange="onToggleCodes"/>
+      <text class="switch-label">显示色号</text>
+    </view>
+    <view class="control-row">
+      <text class="control-label">底板尺寸</text>
+      <view class="selector-display selector-sm" bindtap="toggleBoardPicker">
+        <text>{{boardSizes[boardSizeIdx]}}</text>
+        <text class="selector-arrow">▼</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="card" wx:if="{{hasImage}}">
+    <view class="card-title">📤 导出</view>
+    <button class="btn btn-accent" bindtap="exportPNG" style="width:100%">导出 PNG 到相册</button>
+  </view>
+
+  <view class="card" wx:if="{{hasImage && colorSummary.length > 0}}">
+    <view class="card-title">🎯 颜色图例</view>
+    <view class="legend-item" wx:for="{{colorSummary}}" wx:key="code">
+      <view class="legend-swatch" style="background: {{item.hex}}"></view>
+      <text class="legend-code">{{item.code}}</text>
+      <text class="legend-count">{{item.count}}颗</text>
+    </view>
+    <view class="legend-summary">共 {{colorSummary.length}} 色 · {{totalBeads}} 颗</view>
+  </view>
+
+  <!-- 自定义下拉浮层 -->
+  <view class="picker-overlay" wx:if="{{showPalettePicker || showBoardPicker}}" bindtap="closePickers">
+    <view class="picker-menu" catchtap="noop">
+      <block wx:if="{{showPalettePicker}}">
+        <view class="picker-menu-title">选择色卡品牌</view>
+        <view class="picker-item {{index === paletteIdx ? 'picker-item--sel' : ''}}"
+          wx:for="{{paletteNames}}" wx:key="*this"
+          data-idx="{{index}}" bindtap="selectPalette">
+          <text>{{item}}</text>
+          <text class="picker-check" wx:if="{{index === paletteIdx}}">✓</text>
+        </view>
+      </block>
+      <block wx:if="{{showBoardPicker}}">
+        <view class="picker-menu-title">选择底板尺寸</view>
+        <view class="picker-item {{index === boardSizeIdx ? 'picker-item--sel' : ''}}"
+          wx:for="{{boardSizes}}" wx:key="*this"
+          data-idx="{{index}}" bindtap="selectBoard">
+          <text>{{item}}</text>
+          <text class="picker-check" wx:if="{{index === boardSizeIdx}}">✓</text>
+        </view>
+      </block>
+    </view>
+  </view>
+</view>
