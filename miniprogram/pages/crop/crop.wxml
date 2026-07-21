@@ -3,8 +3,8 @@
 
   <!-- ═══ 阶段 1: 选图 ═══ -->
   <view class="upload-zone" bindtap="pickImage" wx:if="{{phase==='pick'}}">
-    <text class="upload-icon">✂️</text>
-    <text class="upload-text">点击选择图片进行裁剪</text>
+    <text class="upload-icon">⊞</text>
+    <text class="upload-text">选择图片进行裁剪</text>
     <text class="upload-hint">选择图片后可自由裁剪区域</text>
   </view>
 

@@ -1,63 +1,102 @@
+/* ═════════════════════════════════════════════════════════
+   拼豆图纸生成器 — 设计令牌 v3 像素风
+   每一颗拼豆都是一个像素，界面也应该是拼豆做的
+   ═════════════════════════════════════════════════════════ */
+
 page {
-  --bg: #faf8f5;
-  --card: #ffffff;
-  --text: #1f1f28;
-  --sub: #9d9da8;
-  --accent: #f9742c;
-  --accent2: #e8458b;
-  --border: #f0ede8;
-  --shadow: 0 4rpx 24rpx rgba(0,0,0,0.05);
-  --shadow-lg: 0 8rpx 40rpx rgba(0,0,0,0.08);
+  --bg:        #f5f4f2;
+  --card:      #ffffff;
+  --text:      #1c1c22;
+  --sub:       #8b8b93;
+  --accent:    #5b8c5a;
+  --border:    #d8d6d2;
+  --divider:   #e8e6e3;
+  /* 像素阴影：无模糊，硬边偏移 */
+  --px-sm:     2rpx 2rpx 0 rgba(0,0,0,0.06);
+  --px-md:     4rpx 4rpx 0 rgba(0,0,0,0.07);
+  --px-lg:     6rpx 6rpx 0 rgba(0,0,0,0.08);
+  --px-accent: 3rpx 3rpx 0 rgba(91,140,90,0.25);
+
   background: var(--bg);
   font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
   color: var(--text);
   font-size: 28rpx;
+  line-height: 1.6;
 }
 
-.card {
+/* ═══════════════ 通用原子类 ═══════════════ */
+
+/* 区块容器 */
+.section {
   background: var(--card);
-  border-radius: 24rpx;
-  padding: 28rpx;
-  margin: 16rpx 20rpx;
-  box-shadow: var(--shadow);
+  margin: 0 24rpx 16rpx;
+  padding: 24rpx;
+  border-radius: 2rpx;
+  border: 2rpx solid var(--border);
+  box-shadow: var(--px-md);
 }
 
-.card-title {
-  font-size: 24rpx;
+.section-title {
+  font-size: 22rpx;
   font-weight: 700;
   color: var(--sub);
   letter-spacing: 2rpx;
-  margin-bottom: 20rpx;
-  display: flex;
-  align-items: center;
-  gap: 10rpx;
-}
-.card-title::before {
-  content: '';
-  display: inline-block;
-  width: 6rpx; height: 22rpx;
-  border-radius: 3rpx;
-  background: linear-gradient(180deg, var(--accent), var(--accent2));
+  margin-bottom: 16rpx;
+  text-transform: uppercase;
 }
 
-.btn-row { display: flex; gap: 12rpx; }
+/* 细线分隔 */
+.divider {
+  height: 2rpx;
+  background: var(--divider);
+  margin: 8rpx 0;
+}
 
+/* 按钮基础 */
 .btn {
-  padding: 18rpx 36rpx;
-  border-radius: 16rpx;
+  padding: 16rpx 32rpx;
+  border-radius: 2rpx;
   font-size: 28rpx;
-  font-weight: 600;
+  font-weight: 700;
   text-align: center;
-  border: none;
+  border: 2rpx solid;
+  line-height: 1.2;
+  transition: transform .05s, box-shadow .05s;
 }
 
-.btn-accent {
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
+/* 主操作按钮 — 像素游戏 3D 键帽风 */
+.btn-primary {
+  background: var(--accent);
   color: #fff;
-  box-shadow: 0 6rpx 20rpx rgba(249,116,44,0.3);
+  border-color: rgba(0,0,0,0.12);
+  box-shadow:
+    var(--px-accent),
+    inset 2rpx 2rpx 0 rgba(255,255,255,0.25),
+    inset -2rpx -2rpx 0 rgba(0,0,0,0.08);
 }
-.btn-ghost {
+.btn-primary:active {
+  box-shadow:
+    inset 3rpx 3rpx 0 rgba(0,0,0,0.12);
+  transform: translate(2rpx, 2rpx);
+}
+
+/* 次要按钮 */
+.btn-secondary {
   background: var(--card);
   color: var(--text);
-  border: 2rpx solid var(--border);
+  border-color: var(--border);
+  box-shadow:
+    var(--px-sm),
+    inset 1rpx 1rpx 0 rgba(255,255,255,0.6),
+    inset -1rpx -1rpx 0 rgba(0,0,0,0.04);
+}
+.btn-secondary:active {
+  background: var(--bg);
+  box-shadow: inset 2rpx 2rpx 0 rgba(0,0,0,0.06);
+  transform: translate(1rpx, 1rpx);
+}
+
+.btn-row {
+  display: flex;
+  gap: 12rpx;
 }
