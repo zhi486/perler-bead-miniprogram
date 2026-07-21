@@ -37,6 +37,21 @@ Page({
     this._setPalette(PALETTES[1].data);
   },
 
+  // 基础库 3.16+ 隐私保护框架：在调用隐私相关 API 前先获取授权
+  _withPrivacyAuth(callback) {
+    if (typeof wx.requirePrivacyAuthorize === 'function') {
+      wx.requirePrivacyAuthorize({
+        success: () => callback(),
+        fail: err => {
+          console.error('[privacy] 隐私授权失败:', err);
+          wx.showToast({ title: '需要同意隐私政策', icon: 'none' });
+        }
+      });
+    } else {
+      callback();
+    }
+  },
+
   onShow() {
     const task = getApp().globalData && getApp().globalData.cropTask;
     if (!task) return;
@@ -58,9 +73,11 @@ Page({
 
   chooseImage() {
     this._lastCropTask = null;
-    wx.chooseImage({
-      count: 1, sizeType: ['original'], sourceType: ['album','camera'],
-      success: r => {
+    // 基础库 3.16+ 隐私保护框架要求先获得隐私授权
+    this._withPrivacyAuth(() => {
+      wx.chooseImage({
+        count: 1, sizeType: ['original'], sourceType: ['album','camera'],
+        success: r => {
         const path = r.tempFilePaths[0];
         wx.showLoading({ title: '检测中...' });
         // 上传到云存储 → 内容安全检查
@@ -99,6 +116,7 @@ Page({
         }
       }
     });
+    }); // _withPrivacyAuth
   },
 
   reChooseImage() {
@@ -325,14 +343,42 @@ Page({
     wx.showLoading({ title: '导出中' });
     // 在页面上下文中获取 Canvas 节点，传给导出器
     wx.createSelectorQuery().select('#previewCanvas').fields({ node: true }).exec(res => {
-      if (!res[0]) { wx.hideLoading(); wx.showToast({ title: '导出失败', icon: 'none' }); return; }
+      if (!res[0]) {
+        wx.hideLoading();
+        console.error('[exportPNG] 未找到 Canvas 节点');
+        wx.showToast({ title: '导出失败，请重试', icon: 'none' });
+        return;
+      }
       const { exportToAlbum } = require('../../utils/exporter');
       exportToAlbum({
         canvasNode: res[0].node,
         patternGrid: this.grid, patternIdx: this.idx, palette: this.palette,
         paletteMode: this.data.paletteMode, colorSummary: this.data.colorSummary, totalBeads: this.data.totalBeads
       }).then(() => { wx.hideLoading(); wx.showToast({ title: '已保存到相册', icon: 'success' }); })
-        .catch(e => { wx.hideLoading(); if (e === 'denied') wx.showModal({ title: '需要相册权限', content: '请在设置中允许', confirmText: '去设置', success: r => { if (r.confirm) wx.openSetting(); } }); else wx.showToast({ title: '导出失败', icon: 'none' }); });
+        .catch(e => {
+          wx.hideLoading();
+          console.error('[exportPNG] 导出失败:', e);
+          if (e === 'denied') {
+            wx.showModal({
+              title: '需要相册权限',
+              content: '保存图片需要相册写入权限，请在设置中允许',
+              confirmText: '去设置',
+              success: r => { if (r.confirm) wx.openSetting(); }
+            });
+          } else if (e === 'privacy_denied') {
+            wx.showModal({
+              title: '需要同意隐私政策',
+              content: '根据微信要求，保存图片需要先同意隐私保护政策，请重新导出',
+              showCancel: false,
+              confirmText: '知道了'
+            });
+          } else if (e === 'cancelled') {
+            wx.showToast({ title: '已取消', icon: 'none' });
+          } else {
+            const msg = (e && e.errMsg) ? e.errMsg : '导出失败，请重试';
+            wx.showToast({ title: msg, icon: 'none' });
+          }
+        });
     });
   }
 });

@@ -9,6 +9,6 @@
   "permission": {
     "scope.writePhotosAlbum": { "desc": "用于保存拼豆图纸到相册" }
   },
-  "__usePrivacyCheck__": false,
+  "__usePrivacyCheck__": true,
   "sitemapLocation": "sitemap.json"
 }

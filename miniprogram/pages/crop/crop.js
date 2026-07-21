@@ -56,10 +56,26 @@ Page({
     this.setData({ phase: 'pick', hasImage: false });
   },
 
+  // 基础库 3.16+ 隐私保护框架：在调用隐私相关 API 前先获取授权
+  _withPrivacyAuth(callback) {
+    if (typeof wx.requirePrivacyAuthorize === 'function') {
+      wx.requirePrivacyAuthorize({
+        success: () => callback(),
+        fail: err => {
+          console.error('[privacy] 隐私授权失败:', err);
+          wx.showToast({ title: '需要同意隐私政策', icon: 'none' });
+        }
+      });
+    } else {
+      callback();
+    }
+  },
+
   /* ── 选图 ── */
   pickImage() {
-    wx.chooseImage({
-      count: 1, sizeType: ['original'], sourceType: ['album','camera'],
+    this._withPrivacyAuth(() => {
+      wx.chooseImage({
+        count: 1, sizeType: ['original'], sourceType: ['album','camera'],
       success: r => {
         const path = r.tempFilePaths[0];
         wx.showLoading({ title: '检测中...' });
@@ -97,6 +113,7 @@ Page({
         }
       }
     });
+    }); // _withPrivacyAuth
   },
 
   /* ── 裁剪交互 ── */

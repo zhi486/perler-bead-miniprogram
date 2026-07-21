@@ -1,5 +1,7 @@
 // utils/exporter.js — PNG 导出到相册
 
+const { renderPattern } = require('./renderer');
+
 function exportToAlbum(opts) {
   const {
     canvasNode,
@@ -8,7 +10,6 @@ function exportToAlbum(opts) {
   } = opts;
 
   const beadW = patternGrid[0].length, beadH = patternGrid.length;
-  const { renderPattern } = require('./renderer');
 
   // 导出高清图（tileSize 放大到 30px）
   const exportTile = 30;
@@ -121,6 +122,8 @@ function exportToAlbum(opts) {
       const b64 = fs.readFileSync('/assets/qrcode.jpg', 'base64');
       qrImg.src = 'data:image/jpeg;base64,' + b64;
     } catch (e) {
+      // 二维码加载失败不影响导出，继续无二维码版本
+      console.warn('[exporter] 二维码加载失败:', e);
       doExport(canvasNode, offCanvas, legendW, totalH, resolve, reject);
     }
   });
@@ -173,24 +176,98 @@ function doExport(canvasNode, offCanvas, legendW, totalH, resolve, reject) {
     if (pg && typeof pg.draw === 'function') pg.draw();
   };
 
-  setTimeout(() => {
+  // 使用双层 rAF 确保 Canvas 内容已提交到渲染缓冲区（真机上 150ms setTimeout 不够可靠）
+  function afterRender(cb) {
+    if (typeof canvasNode.requestAnimationFrame === 'function') {
+      canvasNode.requestAnimationFrame(() => {
+        canvasNode.requestAnimationFrame(cb);
+      });
+    } else {
+      setTimeout(cb, 300);
+    }
+  }
+
+  afterRender(() => {
     wx.canvasToTempFilePath({
       canvas: canvasNode,
       x: 0, y: 0, width: legendW, height: totalH,
+      fileType: 'png',
       success: r => {
         restore();
-        wx.saveImageToPhotosAlbum({
-          filePath: r.tempFilePath,
-          success: resolve,
-          fail: err => {
-            if (err.errMsg.indexOf('auth deny') !== -1) reject('denied');
-            else reject(err);
-          }
-        });
+        saveWithAuth(r.tempFilePath, resolve, reject);
       },
-      fail: err => { restore(); reject(err); }
+      fail: err => {
+        restore();
+        console.error('[exporter] canvasToTempFilePath 失败:', err);
+        reject(err);
+      }
     });
-  }, 150);
+  });
+}
+
+/* ── 检查隐私授权 + scope 授权后保存到相册 ── */
+function saveWithAuth(filePath, resolve, reject) {
+  // Step 1: 先通过隐私保护框架授权（基础库 3.16+ 强制要求）
+  // 如果用户尚未同意隐私政策，requirePrivacyAuthorize 会弹出隐私协议弹窗
+  if (typeof wx.requirePrivacyAuthorize === 'function') {
+    wx.requirePrivacyAuthorize({
+      success: () => {
+        // 隐私授权通过，继续检查 scope 权限
+        checkScopeAndSave(filePath, resolve, reject);
+      },
+      fail: err => {
+        console.error('[exporter] 隐私授权失败:', err);
+        // 用户拒绝隐私协议
+        reject('privacy_denied');
+      }
+    });
+  } else {
+    // 低版本基础库不支持 requirePrivacyAuthorize，直接走 scope 检查
+    checkScopeAndSave(filePath, resolve, reject);
+  }
+}
+
+/* ── 检查 scope.writePhotosAlbum 授权状态后保存 ── */
+function checkScopeAndSave(filePath, resolve, reject) {
+  wx.getSetting({
+    success: settingRes => {
+      const auth = settingRes.authSetting['scope.writePhotosAlbum'];
+      if (auth === false) {
+        // 用户曾拒绝过相册权限，引导去设置页
+        reject('denied');
+        return;
+      }
+      // 首次调用（auth === undefined）或已授权（auth === true），直接保存
+      doSave(filePath, resolve, reject);
+    },
+    fail: err => {
+      console.error('[exporter] getSetting 失败:', err);
+      // getSetting 失败时仍尝试直接保存（首次调用会弹出系统授权框）
+      doSave(filePath, resolve, reject);
+    }
+  });
+}
+
+/* ── 执行保存到相册 ── */
+function doSave(filePath, resolve, reject) {
+  wx.saveImageToPhotosAlbum({
+    filePath: filePath,
+    success: resolve,
+    fail: err => {
+      console.error('[exporter] saveImageToPhotosAlbum 失败:', err);
+      const msg = err.errMsg || '';
+      if (msg.indexOf('auth deny') !== -1) {
+        reject('denied');
+      } else if (msg.indexOf('cancel') !== -1) {
+        reject('cancelled');
+      } else if (msg.indexOf('privacy') !== -1) {
+        // 隐私 API 相关错误，引导用户同意隐私协议
+        reject('privacy_denied');
+      } else {
+        reject(err);
+      }
+    }
+  });
 }
 
 module.exports = { exportToAlbum };
