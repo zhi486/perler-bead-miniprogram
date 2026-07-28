@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════
-   裁剪页 — 像素风
+   裁剪页 — 暖纸底 · 网页版对齐
    ════════════════════════════════════════════ */
 
 .page {
@@ -9,12 +9,12 @@
 /* ── 上传区（选图阶段） ── */
 .upload-zone {
   margin: 120rpx 40rpx 0;
-  padding: 80rpx 40rpx;
-  border-radius: 2rpx;
+  padding: 60rpx 40rpx;
+  border-radius: 16rpx;
   text-align: center;
   background: var(--card);
-  border: 3rpx dashed var(--border);
-  box-shadow: var(--px-lg);
+  border: 2px dashed var(--border-strong);
+  box-shadow: var(--shadow-card);
 }
 .upload-icon {
   font-size: 72rpx;
@@ -23,7 +23,7 @@
 }
 .upload-text {
   font-size: 30rpx;
-  color: var(--text);
+  color: #4a443c;
   font-weight: 700;
 }
 .upload-hint {
@@ -58,31 +58,28 @@
   flex: 1;
 }
 .crop-skip, .crop-ok {
-  padding: 12rpx 24rpx;
+  padding: 14rpx 28rpx;
   font-size: 26rpx;
-  font-weight: 700;
-  border-radius: 2rpx;
-  border: 2rpx solid;
+  font-weight: 600;
+  border-radius: 10rpx;
+  border: 1px solid;
 }
 .crop-skip {
   background: transparent;
   color: #999;
-  border-color: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,.12);
 }
 .crop-skip:active {
-  background: rgba(255,255,255,0.05);
+  background: rgba(255,255,255,.05);
 }
 .crop-ok {
   background: var(--accent);
   color: #fff;
-  border-color: rgba(0,0,0,0.12);
-  box-shadow:
-    2rpx 2rpx 0 rgba(0,0,0,0.2),
-    inset 1rpx 1rpx 0 rgba(255,255,255,0.2);
+  border-color: rgba(0,0,0,0.08);
+  box-shadow: 0 1px 2px rgba(224,90,43,.25);
 }
 .crop-ok:active {
-  box-shadow: inset 2rpx 2rpx 0 rgba(0,0,0,0.15);
-  transform: translate(1rpx, 1rpx);
+  box-shadow: 0 1px 2px rgba(224,90,43,.35);
 }
 
 /* ── 裁剪画布 ── */
@@ -98,7 +95,7 @@
     linear-gradient(-45deg, transparent 75%, #383840 75%);
   background-size: 24rpx 24rpx;
   background-position: 0 0, 0 12rpx, 12rpx -12rpx, -12rpx 0px;
-  border-radius: 2rpx;
+  border-radius: 6rpx;
   border: 2rpx solid #444;
 }
 .crop-img {
@@ -116,9 +113,9 @@
   height: 32rpx;
   background: #fff;
   border: 3rpx solid var(--accent);
-  border-radius: 2rpx;
+  border-radius: 6rpx;
   z-index: 10;
-  box-shadow: 2rpx 2rpx 0 rgba(0,0,0,0.3);
+  box-shadow: 0 2px 6px rgba(0,0,0,.3);
 }
 .crop-handle--tl {
   left: -16rpx;

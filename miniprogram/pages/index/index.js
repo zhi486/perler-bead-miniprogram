@@ -3,19 +3,33 @@ const { rgbToLab } = require('../../utils/color_space');
 const { quantize } = require('../../utils/median_cut');
 const { findNearestColor } = require('../../utils/color_matcher');
 const { renderPattern } = require('../../utils/renderer');
-const palette291 = require('../../data/palette_291');
-const palette221 = require('../../data/palette_221');
+const palette291    = require('../../data/palette_291');
+const palette221    = require('../../data/palette_221');
+const paletteTrans  = require('../../data/palette_transparent');
 const paletteArtkalS = require('../../data/palette_artkal_s');
-const paletteHama = require('../../data/palette_hama');
+const paletteHama   = require('../../data/palette_hama');
 const palettePerler = require('../../data/palette_perler');
 
-const PALETTES = [
-  { mode: 'mard291',  name: 'MARD 291色',    data: palette291 },
-  { mode: 'mard221',  name: 'MARD 221色',    data: palette221 },
-  { mode: 'artkal_s', name: 'Artkal S 199色', data: paletteArtkalS },
-  { mode: 'hama',     name: 'Hama Midi 92色', data: paletteHama },
-  { mode: 'perler',   name: 'Perler 103色',   data: palettePerler },
+// 品牌 → 材质 → 色卡 二级映射
+const BRANDS = [
+  {
+    id: 'mard', name: 'MARD',
+    materials: [
+      { id: 'solid', name: '实色',   desc: '标准不透明（A-H+M系列，221色）',    palette: palette221 },
+      { id: 'translucent', name: '半透明', desc: '透明底色（P/Q/R/T/Y/ZG系列，70色）', palette: paletteTrans,
+        note: '⚠️ 半透明豆子拼在底板上会透出底板颜色，成品效果与实色不同，建议先确认底板颜色。' }
+    ]
+  },
+  { id: 'artkal_s', name: 'Artkal S',   palette: paletteArtkalS },
+  { id: 'hama',     name: 'Hama Midi',  palette: paletteHama },
+  { id: 'perler',   name: 'Perler',     palette: palettePerler },
 ];
+
+function resolvePalette(brandIdx, materialIdx) {
+  const b = BRANDS[brandIdx];
+  if (b.materials) return b.materials[materialIdx].palette;
+  return b.palette;
+}
 
 const ZOOM = [5,8,10,12,15,18,20,25,30,40,50];
 
@@ -23,18 +37,28 @@ Page({
   data: {
     hasImage: false, statusText: '',
     beadH: 52, beadW: 0, maxColors: 50,
-    paletteMode: 'mard221', paletteIdx: 1,
-    paletteNames: PALETTES.map(p => p.name), tileSize: 20,
+    brandIdx: 0, brandNames: BRANDS.map(b => b.name),
+    materialIdx: 0,
+    hasMaterial: true,  // 当前品牌是否有材质子选项
+    materialNames: [],
+    materialDescs: [],
+    materialNote: '',
+    showBrandPicker: false,
+    showMaterialPicker: false,
+    tileSize: 20,
     showGrid: true, showBoard: true, showCodes: true,
-    boardSizes: ['52×52','72×72','102×102'], boardSizeIdx: 0,
+    boardSizes: ['52×52','104×104','208×208'], boardSizeIdx: 0,
     canvasWidth: 0, canvasHeight: 0,
     colorSummary: [], totalBeads: 0,
-    showPalettePicker: false, showBoardPicker: false
+    showBoardPicker: false
   },
 
   onLoad() {
-    this._paletteIdx = 1;
-    this._setPalette(PALETTES[1].data);
+    // 默认: MARD 实色 → palette_221
+    this._brandIdx = 0;
+    this._materialIdx = 0;
+    this._syncMaterialData();
+    this._setPalette(resolvePalette(0, 0));
   },
 
   // 基础库 3.16+ 隐私保护框架：在调用隐私相关 API 前先获取授权
@@ -69,6 +93,29 @@ Page({
     this.paletteLAB = p.map(c => rgbToLab(c.rgb));
     this.paletteMap = {};
     p.forEach(c => { this.paletteMap[c.code] = c; });
+  },
+
+  /* 根据当前品牌同步材质子选项 */
+  _syncMaterialData() {
+    const b = BRANDS[this._brandIdx];
+    if (b.materials) {
+      this.setData({
+        hasMaterial: true,
+        materialNames: b.materials.map(m => m.name),
+        materialDescs: b.materials.map(m => m.desc),
+      });
+    } else {
+      this.setData({ hasMaterial: false });
+    }
+  },
+
+  /* 获取当前色卡描述文本 */
+  _paletteLabel() {
+    const b = BRANDS[this._brandIdx];
+    if (b.materials) {
+      return b.name + ' · ' + b.materials[this._materialIdx].name;
+    }
+    return b.name;
   },
 
   chooseImage() {
@@ -219,7 +266,7 @@ Page({
     const setOpts = {
       colorSummary: sorted.map(([code, cnt]) => ({ code, count: cnt, hex: this.paletteMap[code].hex })),
       totalBeads: total,
-      statusText: `${W}×${H} · ${PALETTES[this._paletteIdx].name} · ${sorted.length}色 · ${total}颗`
+      statusText: `${W}×${H} · ${this._paletteLabel()} · ${sorted.length}色 · ${total}颗`
     };
     if (opts.isNew) { setOpts.hasImage = true; setOpts.beadW = W; }
     this.setData(setOpts);
@@ -268,35 +315,40 @@ Page({
   onTouchEnd() { this._pinch=null; },
 
   // 自定义下拉选择器
-  togglePalettePicker() { this.setData({ showPalettePicker: !this.data.showPalettePicker, showBoardPicker: false }); },
-  toggleBoardPicker()  { this.setData({ showBoardPicker: !this.data.showBoardPicker, showPalettePicker: false }); },
-  closePickers() { this.setData({ showPalettePicker: false, showBoardPicker: false }); },
+  toggleBrandPicker()   { this.setData({ showBrandPicker: !this.data.showBrandPicker, showBoardPicker: false, showMaterialPicker: false }); },
+  toggleBoardPicker()   { this.setData({ showBoardPicker: !this.data.showBoardPicker, showBrandPicker: false, showMaterialPicker: false }); },
+  toggleMaterialPicker(){ this.setData({ showMaterialPicker: !this.data.showMaterialPicker, showBrandPicker: false, showBoardPicker: false }); },
+  closePickers() { this.setData({ showBrandPicker: false, showBoardPicker: false, showMaterialPicker: false }); },
   noop() {},
 
-  selectPalette(e) {
+  selectBrand(e) {
     const idx = parseInt(e.currentTarget.dataset.idx);
-    this.setData({ showPalettePicker: false });
-    if (idx === this._paletteIdx) return;
-    this._paletteIdx = idx;
-    const p = PALETTES[idx];
-    this._setPalette(p.data);
-    this.setData({ paletteMode: p.mode, paletteIdx: idx });
+    this.setData({ showBrandPicker: false });
+    if (idx === this._brandIdx) return;
+    this._brandIdx = idx;
+    this._materialIdx = 0;  // 切换品牌时重置材质
+    this._syncMaterialData();
+    const p = resolvePalette(idx, 0);
+    this._setPalette(p);
+    this.setData({ brandIdx: idx, materialIdx: 0, materialNote: '' });
+    if (this.grid) this._reprocess();
+  },
+  selectMaterial(e) {
+    const idx = parseInt(e.currentTarget.dataset.idx);
+    this.setData({ materialIdx: idx, showMaterialPicker: false });
+    this._materialIdx = idx;
+    const p = resolvePalette(this._brandIdx, idx);
+    this._setPalette(p);
+    // 半透明附注
+    const b = BRANDS[this._brandIdx];
+    const note = (b.materials && b.materials[idx].note) ? b.materials[idx].note : '';
+    this.setData({ materialIdx: idx, materialNote: note });
     if (this.grid) this._reprocess();
   },
   selectBoard(e) {
     const idx = parseInt(e.currentTarget.dataset.idx);
     this.setData({ boardSizeIdx: idx, showBoardPicker: false });
     this.draw();
-  },
-
-  switchPalette(e) {
-    const idx = parseInt(e.detail.value);
-    if (idx === this._paletteIdx) return;
-    this._paletteIdx = idx;
-    const p = PALETTES[idx];
-    this._setPalette(p.data);
-    this.setData({ paletteMode: p.mode, paletteIdx: idx });
-    if (this.grid) this._reprocess();
   },
 
   onBeadHChanging(e) { this.setData({ beadH: e.detail.value }); },
@@ -353,7 +405,7 @@ Page({
       exportToAlbum({
         canvasNode: res[0].node,
         patternGrid: this.grid, patternIdx: this.idx, palette: this.palette,
-        paletteMode: this.data.paletteMode, colorSummary: this.data.colorSummary, totalBeads: this.data.totalBeads
+        paletteLabel: this._paletteLabel(), colorSummary: this.data.colorSummary, totalBeads: this.data.totalBeads
       }).then(() => { wx.hideLoading(); wx.showToast({ title: '已保存到相册', icon: 'success' }); })
         .catch(e => {
           wx.hideLoading();

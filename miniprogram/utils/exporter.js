@@ -6,7 +6,7 @@ function exportToAlbum(opts) {
   const {
     canvasNode,
     patternGrid, patternIdx, palette,
-    paletteMode, colorSummary, totalBeads
+    paletteLabel, colorSummary, totalBeads
   } = opts;
 
   const beadW = patternGrid[0].length, beadH = patternGrid.length;
@@ -92,7 +92,7 @@ function exportToAlbum(opts) {
   ctx.font = 'bold 12px -apple-system, "Microsoft YaHei", sans-serif';
   ctx.fillText(
     '共 ' + sorted.length + ' 种颜色 · ' + totalBeads + ' 颗豆子 · ' +
-    beadW + '×' + beadH + ' · ' + paletteMode + '色卡',
+    beadW + '×' + beadH + ' · ' + paletteLabel,
     innerPad, ly + 10
   );
 
