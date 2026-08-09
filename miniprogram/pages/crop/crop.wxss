@@ -82,6 +82,38 @@
   box-shadow: 0 1px 2px rgba(224,90,43,.35);
 }
 
+/* ── 比例预设按钮 ── */
+.ratio-presets {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  padding: 14rpx 24rpx;
+  flex-wrap: wrap;
+}
+.ratio-btn {
+  padding: 10rpx 18rpx;
+  font-size: 22rpx;
+  font-weight: 600;
+  color: #999;
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 8rpx;
+  background: rgba(255,255,255,.06);
+  letter-spacing: 0.5rpx;
+  transition: all .12s;
+}
+.ratio-btn:active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.ratio-btn--active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2rpx rgba(224,90,43,.35);
+}
+
 /* ── 裁剪画布 ── */
 .crop-stage {
   position: relative;

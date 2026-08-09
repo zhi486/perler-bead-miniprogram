@@ -1,8 +1,7 @@
 // pages/crop/crop.js
 const { rgbToLab } = require('../../utils/color_space');
-const { quantize } = require('../../utils/median_cut');
-const { findNearestColor } = require('../../utils/color_matcher');
 const { renderPattern } = require('../../utils/renderer');
+const { cropAndScale, buildGrid, matchColors } = require('../../utils/processor');
 const palette291 = require('../../data/palette_291');
 const palette221 = require('../../data/palette_221');
 const paletteArtkalS = require('../../data/palette_artkal_s');
@@ -19,6 +18,18 @@ const PALETTES = [
 
 const ZOOM = [5,8,10,12,15,18,20,25,30,40,50];
 
+// 常见裁剪比例预设
+const RATIO_PRESETS = [
+  { label: '自由',   w: 0, h: 0 },
+  { label: '1:1',   w: 1, h: 1 },
+  { label: '4:3',   w: 4, h: 3 },
+  { label: '3:2',   w: 3, h: 2 },
+  { label: '16:9',  w: 16, h: 9 },
+  { label: '2:3',   w: 2, h: 3 },
+  { label: '3:4',   w: 3, h: 4 },
+  { label: '9:16',  w: 9, h: 16 },
+];
+
 Page({
   data: {
     phase: 'pick',  // pick | crop | result
@@ -31,15 +42,22 @@ Page({
     paletteMode: 'mard221', paletteIdx: 1,
     paletteNames: PALETTES.map(p => p.name), tileSize: 20,
     showGrid: true, showBoard: true, showCodes: true,
-    boardSizes: ['52×52','72×72','102×102'], boardSizeIdx: 0,
+    boardSizes: ['52×52','72×72','78×78','102×102'], boardSizeIdx: 0,
     canvasWidth: 0, canvasHeight: 0,
     colorSummary: [], totalBeads: 0,
     showPalettePicker: false, showBoardPicker: false,
+    ratioPresets: RATIO_PRESETS, activeRatio: 0,
   },
 
   onLoad() {
     this._paletteIdx = 1;
     this._setPalette(PALETTES[1].data);
+    // 主页传入了已有图片 → 跳过选图，直接裁剪
+    const srcPath = getApp().globalData && getApp().globalData.cropSourcePath;
+    if (srcPath) {
+      getApp().globalData.cropSourcePath = null;
+      this._prepareCrop(srcPath);
+    }
   },
 
   _setPalette(p) {
@@ -150,7 +168,8 @@ Page({
           phase: 'crop', cropPath: path,
           cropDw: stageW, cropDh: stageH, cropScale: scale,
           imgLeft, imgTop, imgDw: dw, imgDh: dh,
-          cropX: fx, cropY: fy, cropW: fw, cropH: fh
+          cropX: fx, cropY: fy, cropW: fw, cropH: fh,
+          activeRatio: 0
         });
 
         // 估算 stage 在屏幕上的位置
@@ -208,8 +227,19 @@ Page({
       if (dx < 20 && dy < 20) return;
       const sx = Math.max(0.3, Math.min(3, dx / Math.max(1, this._cropPinch.dx)));
       const sy = Math.max(0.3, Math.min(3, dy / Math.max(1, this._cropPinch.dy)));
-      let nw = Math.max(60, Math.min(iw, Math.round(this._cropPinch.w * sx)));
-      let nh = Math.max(60, Math.min(ih, Math.round(this._cropPinch.h * sy)));
+      let nw, nh;
+      if (this.data.activeRatio > 0) {
+        // 锁定比例：使用平均缩放系数
+        const preset = RATIO_PRESETS[this.data.activeRatio];
+        const ratio = preset.w / preset.h;
+        const scale = (sx + sy) / 2;
+        nw = Math.max(60, Math.min(iw, Math.round(this._cropPinch.w * scale)));
+        nh = Math.round(nw / ratio);
+        if (nh > ih) { nh = ih; nw = Math.round(nh * ratio); }
+      } else {
+        nw = Math.max(60, Math.min(iw, Math.round(this._cropPinch.w * sx)));
+        nh = Math.max(60, Math.min(ih, Math.round(this._cropPinch.h * sy)));
+      }
       let nx = Math.round(this._cropPinch.cx - nw / 2);
       let ny = Math.round(this._cropPinch.cy - nh / 2);
       // 约束在图片区域内
@@ -220,8 +250,25 @@ Page({
     } else if (t.length === 1 && this._cropResize) {
       const p = this._toLocal(t[0]);
       const dx = p.x - this._cropResize.sx, dy = p.y - this._cropResize.sy;
-      const nw = Math.max(60, Math.min(il + iw - this._cropX, this._cropResize.fw + dx));
-      const nh = Math.max(60, Math.min(it + ih - this._cropY, this._cropResize.fh + dy));
+      let nw, nh;
+      if (this.data.activeRatio > 0) {
+        // 锁定比例：以变化量更大的方向为准
+        const preset = RATIO_PRESETS[this.data.activeRatio];
+        const ratio = preset.w / preset.h;
+        if (Math.abs(dx) >= Math.abs(dy)) {
+          nw = Math.max(60, Math.min(il + iw - this._cropX, this._cropResize.fw + dx));
+          nh = Math.round(nw / ratio);
+        } else {
+          nh = Math.max(60, Math.min(it + ih - this._cropY, this._cropResize.fh + dy));
+          nw = Math.round(nh * ratio);
+        }
+        // 钳位到图片内
+        if (nh > it + ih - this._cropY) { nh = it + ih - this._cropY; nw = Math.round(nh * ratio); }
+        if (nw > il + iw - this._cropX) { nw = il + iw - this._cropX; nh = Math.round(nw / ratio); }
+      } else {
+        nw = Math.max(60, Math.min(il + iw - this._cropX, this._cropResize.fw + dx));
+        nh = Math.max(60, Math.min(it + ih - this._cropY, this._cropResize.fh + dy));
+      }
       this._cropW = nw; this._cropH = nh;
       if (now - this._cropTs > 40) { this._cropTs = now; this.setData({ cropW: nw, cropH: nh }); }
     } else if (t.length === 1 && this._cropDrag) {
@@ -239,6 +286,44 @@ Page({
       this.setData({ cropX: this._cropX, cropY: this._cropY, cropW: this._cropW, cropH: this._cropH });
     }
     this._cropDrag = null; this._cropPinch = null; this._cropResize = null; this._cropTs = 0;
+  },
+
+  /* 选择裁剪比例预设：自动调整裁剪框到对应比例并最大化 */
+  selectRatio(e) {
+    const idx = parseInt(e.currentTarget.dataset.idx);
+    this.setData({ activeRatio: idx });
+
+    const rw = e.currentTarget.dataset.w;
+    const rh = e.currentTarget.dataset.h;
+    const il = this._imgLeft, it = this._imgTop, iw = this._imgW, ih = this._imgH;
+
+    // 比例为 0 表示"自由"模式，不做任何调整
+    if (rw === 0 || rh === 0) return;
+
+    const ratio = rw / rh;
+    const imgRatio = iw / ih;
+
+    // 在图片范围内最大化裁剪区域
+    let nw, nh;
+    if (ratio >= imgRatio) {
+      // 比例比图片更宽 → 以高度为准
+      nh = ih;
+      nw = Math.round(nh * ratio);
+    } else {
+      // 比例比图片更高 → 以宽度为准
+      nw = iw;
+      nh = Math.round(nw / ratio);
+    }
+    // 保险钳位
+    if (nw > iw) { nw = iw; nh = Math.round(nw / ratio); }
+    if (nh > ih) { nh = ih; nw = Math.round(nh * ratio); }
+
+    // 居中放置
+    const nx = il + Math.round((iw - nw) / 2);
+    const ny = it + Math.round((ih - nh) / 2);
+
+    this._cropX = nx; this._cropY = ny; this._cropW = nw; this._cropH = nh;
+    this.setData({ cropX: nx, cropY: ny, cropW: nw, cropH: nh });
   },
 
   confirmCrop() {
@@ -271,8 +356,9 @@ Page({
   _extractAndProcess() {
     const { sx, sy, sw, sh } = this._cropInfo;
     const path = this._origPath;
-    const beadH = this.data.beadH;
-    const beadW = Math.max(1, Math.round(sw / sh * beadH));
+    // beadH 控制宽度（水平豆子数），高度按比例自动计算
+    const beadW = this.data.beadH;
+    const beadH = Math.max(1, Math.round(sh / sw * beadW));
 
     wx.getImageInfo({
       src: path,
@@ -285,28 +371,8 @@ Page({
           try {
             fctx.drawImage(img, 0, 0, info.width, info.height);
             const fullData = fctx.getImageData(0, 0, info.width, info.height);
-
-            // Step 2: 从完整 ImageData 中提取裁剪区域（ArrayBuffer 零拷贝子视图）
-            const crop = new Uint8ClampedArray(sw * sh * 4);
-            for (let r = 0; r < sh; r++) {
-              const srcOff = ((sy + r) * info.width + sx) * 4;
-              crop.set(new Uint8ClampedArray(fullData.data.buffer, srcOff, sw * 4), r * sw * 4);
-            }
-
-            // Step 3: 最近邻缩放到目标豆子尺寸（避免 Canvas 9 参 drawImage 兼容问题）
-            const scaled = new Uint8ClampedArray(beadW * beadH * 4);
-            for (let r = 0; r < beadH; r++) {
-              const srcR = Math.floor(r * sh / beadH);
-              for (let c = 0; c < beadW; c++) {
-                const srcC = Math.floor(c * sw / beadW);
-                const si = (srcR * sw + srcC) * 4;
-                const di = (r * beadW + c) * 4;
-                scaled[di] = crop[si];
-                scaled[di + 1] = crop[si + 1];
-                scaled[di + 2] = crop[si + 2];
-                scaled[di + 3] = 255;
-              }
-            }
+            // 裁剪提取 + 最近邻缩放（processor 纯函数）
+            const scaled = cropAndScale(fullData, info.width, sx, sy, sw, sh, beadW, beadH);
 
             this.setData({ phase: 'result' });
             wx.showLoading({ title: '处理中' });
@@ -328,8 +394,9 @@ Page({
     wx.getImageInfo({
       src: path,
       success: info => {
-        const H = this.data.beadH;
-        const W = Math.max(1, Math.round(info.width / info.height * H));
+        // beadH 控制宽度（水平豆子数），高度按比例自动计算
+        const W = this.data.beadH;
+        const H = Math.max(1, Math.round(info.height / info.width * W));
         const off = wx.createOffscreenCanvas({ type: '2d', width: W, height: H });
         const ctx = off.getContext('2d');
         const img = off.createImage();
@@ -344,30 +411,16 @@ Page({
   },
 
   _process(data, W, H) {
-    const grid = [];
-    for (let r = 0; r < H; r++) {
-      grid[r] = [];
-      for (let c = 0; c < W; c++) {
-        const i = (r * W + c) * 4;
-        grid[r][c] = [data[i], data[i + 1], data[i + 2]];
-      }
-    }
+    const grid = buildGrid(data, W, H);
     this.rawGrid = grid;
     wx.hideLoading();
     this._matchAndDraw(grid, W, H, { isNew: true });
   },
 
   _matchAndDraw(srcGrid, W, H, opts) {
-    const q = quantize(srcGrid, this.data.maxColors);
-    const matched = [], indices = [], counts = {};
-    for (let r = 0; r < H; r++) {
-      matched[r] = []; indices[r] = [];
-      for (let c = 0; c < W; c++) {
-        const n = findNearestColor(q[r][c], this.paletteLAB, this.palette);
-        matched[r][c] = n.rgb; indices[r][c] = n.index;
-        counts[n.code] = (counts[n.code] || 0) + 1;
-      }
-    }
+    const { matched, indices, counts } = matchColors(
+      srcGrid, W, H, this.palette, this.paletteLAB, this.paletteMap, this.data.maxColors
+    );
     this.grid = matched; this.idx = indices;
     const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
     const total = sorted.reduce((s, e) => s + e[1], 0);

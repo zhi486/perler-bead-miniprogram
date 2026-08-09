@@ -1,8 +1,7 @@
 // pages/index/index.js
 const { rgbToLab } = require('../../utils/color_space');
-const { quantize } = require('../../utils/median_cut');
-const { findNearestColor } = require('../../utils/color_matcher');
 const { renderPattern } = require('../../utils/renderer');
+const { cropAndScale, buildGrid, matchColors } = require('../../utils/processor');
 const palette291    = require('../../data/palette_291');
 const palette221    = require('../../data/palette_221');
 const paletteTrans  = require('../../data/palette_transparent');
@@ -37,6 +36,7 @@ Page({
   data: {
     hasImage: false, statusText: '',
     beadH: 52, beadW: 0, maxColors: 50,
+    beadHText: '52', maxColorsText: '50',
     brandIdx: 0, brandNames: BRANDS.map(b => b.name),
     materialIdx: 0,
     hasMaterial: true,  // 当前品牌是否有材质子选项
@@ -47,7 +47,7 @@ Page({
     showMaterialPicker: false,
     tileSize: 20,
     showGrid: true, showBoard: true, showCodes: true,
-    boardSizes: ['52×52','104×104','208×208'], boardSizeIdx: 0,
+    boardSizes: ['52×52','78×78','104×104','208×208'], boardSizeIdx: 0,
     canvasWidth: 0, canvasHeight: 0,
     colorSummary: [], totalBeads: 0,
     showBoardPicker: false
@@ -172,15 +172,24 @@ Page({
 
   /* ── 裁剪工具 ── */
   goToCrop() {
+    // 已有图片时直接传入裁剪页，省去重新选图
+    if (this._lastPath) {
+      getApp().globalData.cropSourcePath = this._lastPath;
+    }
     wx.navigateTo({ url: '/pages/crop/crop' });
+  },
+
+  goToBatch() {
+    wx.navigateTo({ url: '/pages/batch/batch' });
   },
 
   /* 处理裁剪页回传的裁剪坐标 */
   _processCropped(path, sx, sy, sw, sh) {
     this._lastCropTask = { path, sx, sy, sw, sh };
     this._lastPath = path;
-    const beadH = this.data.beadH;
-    const beadW = Math.max(1, Math.round(sw / sh * beadH));
+    // beadH 控制宽度（水平豆子数），高度按比例自动计算
+    const beadW = this.data.beadH;
+    const beadH = Math.max(1, Math.round(sh / sw * beadW));
 
     wx.getImageInfo({
       src: path,
@@ -193,26 +202,8 @@ Page({
           try {
             fctx.drawImage(img, 0, 0, info.width, info.height);
             const fullData = fctx.getImageData(0, 0, info.width, info.height);
-            // Step 2: 提取裁剪区域（ArrayBuffer 零拷贝子视图）
-            const crop = new Uint8ClampedArray(sw * sh * 4);
-            for (let r = 0; r < sh; r++) {
-              const srcOff = ((sy + r) * info.width + sx) * 4;
-              crop.set(new Uint8ClampedArray(fullData.data.buffer, srcOff, sw * 4), r * sw * 4);
-            }
-            // Step 3: 最近邻缩放到目标豆子尺寸
-            const scaled = new Uint8ClampedArray(beadW * beadH * 4);
-            for (let r = 0; r < beadH; r++) {
-              const srcR = Math.floor(r * sh / beadH);
-              for (let c = 0; c < beadW; c++) {
-                const srcC = Math.floor(c * sw / beadW);
-                const si = (srcR * sw + srcC) * 4;
-                const di = (r * beadW + c) * 4;
-                scaled[di]     = crop[si];
-                scaled[di + 1] = crop[si + 1];
-                scaled[di + 2] = crop[si + 2];
-                scaled[di + 3] = 255;
-              }
-            }
+            // Step 2+3: 裁剪提取 + 最近邻缩放（processor 纯函数）
+            const scaled = cropAndScale(fullData, info.width, sx, sy, sw, sh, beadW, beadH);
             this._process(scaled, beadW, beadH);
           } catch (e) {
             wx.hideLoading();
@@ -231,8 +222,9 @@ Page({
     wx.getImageInfo({
       src: path,
       success: info => {
-        const H = this.data.beadH;
-        const W = Math.max(1, Math.round(info.width / info.height * H));
+        // beadH 控制宽度（水平豆子数），高度按比例自动计算
+        const W = this.data.beadH;
+        const H = Math.max(1, Math.round(info.height / info.width * W));
         const off = wx.createOffscreenCanvas({ type: '2d', width: W, height: H });
         const ctx = off.getContext('2d');
         const img = off.createImage();
@@ -243,23 +235,16 @@ Page({
   },
 
   _process(data, W, H) {
-    const grid = [];
-    for (let r = 0; r < H; r++) { grid[r] = []; for (let c = 0; c < W; c++) { const i = (r * W + c) * 4; grid[r][c] = [data[i], data[i + 1], data[i + 2]]; } }
+    const grid = buildGrid(data, W, H);
     this.rawGrid = grid;
     wx.hideLoading();
     this._matchAndDraw(grid, W, H, { isNew: true });
   },
 
   _matchAndDraw(srcGrid, W, H, opts) {
-    const q = quantize(srcGrid, this.data.maxColors);
-    const matched = [], indices = [], counts = {};
-    for (let r = 0; r < H; r++) {
-      matched[r] = []; indices[r] = [];
-      for (let c = 0; c < W; c++) {
-        const n = findNearestColor(q[r][c], this.paletteLAB, this.palette);
-        matched[r][c] = n.rgb; indices[r][c] = n.index; counts[n.code] = (counts[n.code] || 0) + 1;
-      }
-    }
+    const { matched, indices, counts } = matchColors(
+      srcGrid, W, H, this.palette, this.paletteLAB, this.paletteMap, this.data.maxColors
+    );
     this.grid = matched; this.idx = indices;
     const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
     const total = sorted.reduce((s, e) => s + e[1], 0);
@@ -351,9 +336,9 @@ Page({
     this.draw();
   },
 
-  onBeadHChanging(e) { this.setData({ beadH: e.detail.value }); },
+  onBeadHChanging(e) { this.setData({ beadH: e.detail.value, beadHText: String(e.detail.value) }); },
   onBeadHSlider(e) {
-    this.setData({ beadH: e.detail.value });
+    this.setData({ beadH: e.detail.value, beadHText: String(e.detail.value) });
     if (this._lastCropTask) {
       wx.showLoading({ title: '处理中' });
       const t = this._lastCropTask;
@@ -363,9 +348,17 @@ Page({
       this._loadImage(this._lastPath);
     }
   },
+  // 输入框打字中：只更新文本，不触发处理
   onBeadHInput(e) {
-    const v = parseInt(e.detail.value) || 52;
-    this.setData({ beadH: Math.max(5, Math.min(200, v)) });
+    this.setData({ beadHText: e.detail.value });
+  },
+  // 输入框失焦 / 确认：校验值并触发处理
+  onBeadHBlur(e) {
+    const raw = e.detail.value;
+    let v = parseInt(raw);
+    if (isNaN(v) || v < 5) v = 5;
+    if (v > 200) v = 200;
+    this.setData({ beadH: v, beadHText: String(v) });
     if (this._lastCropTask) {
       wx.showLoading({ title: '处理中' });
       const t = this._lastCropTask;
@@ -375,9 +368,25 @@ Page({
       this._loadImage(this._lastPath);
     }
   },
-  onMaxColorsChanging(e) { this.setData({ maxColors: e.detail.value }); },
-  onMaxColorsSlider(e) { if (!this.grid) { this.setData({ maxColors: e.detail.value }); return; } this.setData({ maxColors: e.detail.value }); this._reprocess(); },
-  onMaxColorsInput(e)  { const v = parseInt(e.detail.value) || 50; this.setData({ maxColors: Math.max(4, Math.min(150, v)) }); if (this.grid) this._reprocess(); },
+  onMaxColorsChanging(e) { this.setData({ maxColors: e.detail.value, maxColorsText: String(e.detail.value) }); },
+  onMaxColorsSlider(e) {
+    const v = e.detail.value;
+    this.setData({ maxColors: v, maxColorsText: String(v) });
+    if (this.grid) this._reprocess();
+  },
+  // 输入框打字中：只更新文本，不触发处理
+  onMaxColorsInput(e) {
+    this.setData({ maxColorsText: e.detail.value });
+  },
+  // 输入框失焦 / 确认：校验值并触发处理
+  onMaxColorsBlur(e) {
+    const raw = e.detail.value;
+    let v = parseInt(raw);
+    if (isNaN(v) || v < 4) v = 4;
+    if (v > 150) v = 150;
+    this.setData({ maxColors: v, maxColorsText: String(v) });
+    if (this.grid) this._reprocess();
+  },
 
   _reprocess() {
     if (!this.grid) return;

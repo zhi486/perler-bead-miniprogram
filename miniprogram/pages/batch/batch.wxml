@@ -1,0 +1,208 @@
+<!-- 批量选图 & 裁剪 -->
+<view class="page">
+
+  <!-- 隐藏的导出 canvas（始终在 DOM 中） -->
+  <canvas type="2d" id="exportCanvas" style="position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;"></canvas>
+
+  <!-- ═══ 阶段: pick（选图） ═══ -->
+  <view class="batch-pick" wx:if="{{phase==='pick'}}">
+    <view class="batch-pick__btn" bindtap="startPick">选择多张图片</view>
+    <view class="batch-pick__hint">一次最多选 9 张，首张裁剪后全部套用</view>
+
+    <!-- 已选图片缩略图 -->
+    <view class="pick-thumbs" wx:if="{{thumbPaths.length > 0}}">
+      <view class="pick-thumb" wx:for="{{thumbPaths}}" wx:key="*this">
+        <image src="{{item}}" mode="aspectFill"/>
+        <view class="pick-thumb__badge pick-thumb__badge--ok" wx:if="{{checkResults.length > index && checkResults[index] === true}}">✓</view>
+        <view class="pick-thumb__badge pick-thumb__badge--err" wx:if="{{checkResults.length > index && checkResults[index] === false}}">✗</view>
+      </view>
+    </view>
+
+    <!-- 操作按钮：检查前 -->
+    <view class="btn-row" wx:if="{{thumbPaths.length > 0 && !checksDone}}" style="margin-top:30rpx;">
+      <button class="btn btn-secondary" bindtap="startCheck">检查并生成</button>
+      <button class="btn btn-primary" bindtap="startCheckAndCrop">检查并裁剪</button>
+    </view>
+    <!-- 操作按钮：检查后 -->
+    <view class="btn-row" wx:if="{{thumbPaths.length > 0 && checksDone}}" style="margin-top:30rpx;">
+      <button class="btn btn-secondary" bindtap="startCheck">重新检查</button>
+      <button class="btn btn-primary" bindtap="goToCropAfterCheck">直接生成</button>
+    </view>
+    <view wx:if="{{thumbPaths.length > 0}}" style="margin-top:16rpx;">
+      <button class="btn btn-secondary" bindtap="startPick">重新选择</button>
+    </view>
+  </view>
+
+  <!-- ═══ 阶段: checking / processing（进度条） ═══ -->
+  <view class="batch-progress" wx:if="{{phase==='checking' || phase==='processing'}}">
+    <view class="batch-progress__bar">
+      <view class="batch-progress__fill" style="width:{{progressPct}}%"></view>
+    </view>
+    <view class="batch-progress__text">{{progressText}}</view>
+  </view>
+
+  <!-- ═══ 阶段: crop（等待裁剪返回） ═══ -->
+  <view class="batch-crop-hint" wx:if="{{phase==='crop'}}">
+    <view class="batch-crop-hint__icon">✂️</view>
+    <text>请在裁剪页操作，完成后自动返回</text>
+  </view>
+
+  <!-- ═══ 阶段: list（缩略图网格） ═══ -->
+  <block wx:if="{{phase==='list'}}">
+    <!-- 顶部导航 -->
+    <view class="batch-nav">
+      <text class="batch-nav__back" bindtap="backToIndex">← 首页</text>
+      <text>{{images.length}} 张图纸</text>
+      <view class="batch-nav__actions">
+        <text class="batch-nav__btn batch-nav__btn--primary" bindtap="exportAll">全部导出</text>
+      </view>
+    </view>
+
+    <!-- 缩略图网格 -->
+    <view class="batch-list">
+      <view class="list-card" wx:for="{{images}}" wx:key="id"
+        data-idx="{{index}}" bindtap="openDetail">
+        <!-- 顶部色条：最多 5 个主导色 -->
+        <view class="list-card__colors">
+          <view class="list-card__swatch" wx:for="{{item.topColors}}" wx:key="*this"
+            wx:for-item="clr" style="background:{{clr}};flex:1"></view>
+        </view>
+        <view class="list-card__meta">
+          <text>{{item.colorCount || 0}} 色</text>
+          <text class="accent">{{item.totalBeads || 0}} 颗</text>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <!-- ═══ 阶段: detail（单图详情） ═══ -->
+  <block wx:if="{{phase==='detail'}}">
+    <!-- 导航栏 -->
+    <view class="batch-nav">
+      <text class="batch-nav__back" bindtap="backToList">← 列表</text>
+      <text>{{activeIdx + 1}} / {{images.length}}</text>
+      <view class="batch-nav__actions">
+        <text class="batch-nav__btn" bindtap="prevImage">◀</text>
+        <text class="batch-nav__btn" bindtap="nextImage">▶</text>
+        <text class="batch-nav__btn batch-nav__btn--primary" bindtap="exportOne">导出</text>
+      </view>
+    </view>
+
+    <!-- 预览 Canvas -->
+    <view class="detail-preview">
+      <canvas type="2d" id="detailCanvas" class="detail-canvas"
+        style="width:{{dw}}px;height:{{dh}}px"
+        bindtouchstart="onTouchStart" bindtouchmove="onTouchMove" bindtouchend="onTouchEnd"/>
+    </view>
+
+    <!-- 状态条 -->
+    <view class="detail-status" wx:if="{{activeStatusText}}">
+      <view class="detail-status__dot"></view>
+      <text class="detail-status__text">{{activeStatusText}}</text>
+    </view>
+
+    <!-- 颜色图例 -->
+    <view class="detail-section" wx:if="{{activeColorSummary.length > 0}}">
+      <view class="detail-section__title">颜色图例</view>
+      <view class="detail-legend">
+        <view class="detail-legend__chip" wx:for="{{activeColorSummary}}" wx:key="code">
+          <view class="detail-legend__swatch" style="background:{{item.hex}}"></view>
+          <text class="detail-legend__code">{{item.code}}</text>
+          <text class="detail-legend__count">{{item.count}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 参数 -->
+    <view class="detail-section">
+      <view class="detail-section__title">图纸参数</view>
+
+      <view class="detail-row">
+        <text class="detail-label">豆子长度</text>
+        <slider class="detail-slider" min="5" max="200" value="{{activeBeadH}}"
+          bindchanging="onBeadHChanging" bindchange="onBeadHSlider"
+          block-size="16" activeColor="#e05a2b"/>
+        <input class="detail-input" type="number" value="{{activeBeadHText}}"
+          bindinput="onBeadHInput" bindblur="onBeadHBlur" bindconfirm="onBeadHBlur"/>
+      </view>
+
+      <view class="detail-row">
+        <text class="detail-label">最大颜色</text>
+        <slider class="detail-slider" min="4" max="150" value="{{activeMaxColors}}"
+          bindchanging="onMaxColorsChanging" bindchange="onMaxColorsSlider"
+          block-size="16" activeColor="#e05a2b"/>
+        <input class="detail-input" type="number" value="{{activeMaxColorsText}}"
+          bindinput="onMaxColorsInput" bindblur="onMaxColorsBlur" bindconfirm="onMaxColorsBlur"/>
+      </view>
+    </view>
+
+    <view class="detail-section">
+      <view class="detail-section__title">豆子品牌</view>
+
+      <view class="detail-row">
+        <text class="detail-label">品牌</text>
+        <view class="detail-selector" bindtap="toggleBrandPicker">
+          <text>{{brandNames[activeBrandIdx]}}</text>
+          <text class="detail-selector__arrow">▼</text>
+        </view>
+      </view>
+
+      <block wx:if="{{hasMaterial}}">
+        <view class="divider" style="margin:10rpx 0;border-color:#3a3a40;"></view>
+        <view class="detail-row">
+          <text class="detail-label">材质</text>
+          <view class="detail-selector" bindtap="toggleMaterialPicker">
+            <text>{{materialNames[activeMaterialIdx]}}</text>
+            <text class="detail-selector__arrow">▼</text>
+          </view>
+        </view>
+        <view class="material-note" wx:if="{{materialNote}}" style="background:#332d1a;border-color:#66552a;color:#cca64a;">
+          <text>{{materialNote}}</text>
+        </view>
+      </block>
+    </view>
+
+    <view class="detail-section">
+      <view class="detail-section__title">显示选项</view>
+      <view class="detail-toggles">
+        <label class="detail-toggle">
+          <switch checked="{{showGrid}}" bindchange="onToggleGrid" color="#e05a2b"/>
+          <text>网格线</text>
+        </label>
+        <label class="detail-toggle">
+          <switch checked="{{showBoard}}" bindchange="onToggleBoard" color="#e05a2b"/>
+          <text>底板</text>
+        </label>
+        <label class="detail-toggle">
+          <switch checked="{{showCodes}}" bindchange="onToggleCodes" color="#e05a2b"/>
+          <text>色号</text>
+        </label>
+      </view>
+    </view>
+
+    <!-- 选择器浮层 -->
+    <view class="batch-picker-overlay" wx:if="{{showBrandPicker || showBoardPicker || showMaterialPicker}}" bindtap="closePickers">
+      <view class="batch-picker-menu" catchtap="noop">
+        <block wx:if="{{showBrandPicker}}">
+          <view class="batch-picker-head">选择品牌</view>
+          <view class="batch-picker-item {{index === activeBrandIdx ? 'batch-picker-item--sel' : ''}}"
+            wx:for="{{brandNames}}" wx:key="*this"
+            data-idx="{{index}}" bindtap="selectBrand">
+            <text>{{item}}</text>
+            <text class="batch-picker-check" wx:if="{{index === activeBrandIdx}}">✓</text>
+          </view>
+        </block>
+        <block wx:if="{{showMaterialPicker}}">
+          <view class="batch-picker-head">选择材质</view>
+          <view class="batch-picker-item {{index === activeMaterialIdx ? 'batch-picker-item--sel' : ''}}"
+            wx:for="{{materialNames}}" wx:key="*this"
+            data-idx="{{index}}" bindtap="selectMaterial">
+            <text>{{item}}</text>
+            <text class="batch-picker-check" wx:if="{{index === activeMaterialIdx}}">✓</text>
+          </view>
+        </block>
+      </view>
+    </view>
+  </block>
+
+</view>

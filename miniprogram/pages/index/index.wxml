@@ -23,6 +23,7 @@
         </view>
       </view>
       <view class="header-action" bindtap="goToCrop">裁剪</view>
+      <view class="header-action" bindtap="goToBatch">批量</view>
     </view>
     <!-- 彩虹渐变条 -->
     <view class="rainbow-bar"></view>
@@ -123,7 +124,9 @@
         <text class="setting-label">豆子长度</text>
         <slider class="setting-slider" min="5" max="200" value="{{beadH}}"
           bindchanging="onBeadHChanging" bindchange="onBeadHSlider"
-          show-value block-size="16" activeColor="#e05a2b"/>
+          block-size="16" activeColor="#e05a2b"/>
+        <input class="setting-input" type="number" value="{{beadHText}}"
+          bindinput="onBeadHInput" bindblur="onBeadHBlur" bindconfirm="onBeadHBlur"/>
       </view>
 
       <!-- 最大颜色数 -->
@@ -131,7 +134,9 @@
         <text class="setting-label">最大颜色</text>
         <slider class="setting-slider" min="4" max="150" value="{{maxColors}}"
           bindchanging="onMaxColorsChanging" bindchange="onMaxColorsSlider"
-          show-value block-size="16" activeColor="#e05a2b"/>
+          block-size="16" activeColor="#e05a2b"/>
+        <input class="setting-input" type="number" value="{{maxColorsText}}"
+          bindinput="onMaxColorsInput" bindblur="onMaxColorsBlur" bindconfirm="onMaxColorsBlur"/>
       </view>
     </view>
 

@@ -18,6 +18,16 @@
       <text class="crop-hint">↖ 拖角移动 · 拉角调大小 ↘</text>
       <button class="crop-ok" bindtap="confirmCrop">确认裁剪</button>
     </view>
+    <!-- 比例预设 -->
+    <view class="ratio-presets">
+      <block wx:for="{{ratioPresets}}" wx:key="label">
+        <view class="ratio-btn {{activeRatio === index ? 'ratio-btn--active' : ''}}"
+          data-idx="{{index}}" data-w="{{item.w}}" data-h="{{item.h}}" bindtap="selectRatio">
+          {{item.label}}
+        </view>
+      </block>
+    </view>
+
     <view class="crop-stage"
       style="width:{{cropDw}}px;height:{{cropDh}}px">
       <image class="crop-img" src="{{cropPath}}" mode="aspectFit"

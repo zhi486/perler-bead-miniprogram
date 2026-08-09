@@ -1,5 +1,5 @@
 {
-  "pages": ["pages/index/index", "pages/crop/crop"],
+  "pages": ["pages/index/index", "pages/crop/crop", "pages/batch/batch"],
   "window": {
     "navigationBarTitleText": "拼豆图纸生成器",
     "navigationBarBackgroundColor": "#ffffff",

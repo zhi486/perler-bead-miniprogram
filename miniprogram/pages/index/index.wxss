@@ -291,6 +291,19 @@
 .setting-slider {
   flex: 1;
 }
+.setting-input {
+  width: 88rpx;
+  height: 52rpx;
+  text-align: center;
+  font-size: 26rpx;
+  font-weight: 700;
+  color: var(--accent);
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10rpx;
+  flex-shrink: 0;
+  padding: 0;
+}
 
 .toggle-row {
   display: flex;
